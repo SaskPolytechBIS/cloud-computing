@@ -1,0 +1,50 @@
+{
+  "Comment": "Serverless Image Processing Workflow - Resizes image and handles success/fail",
+  "StartAt": "ResizeImage",
+  "States": {
+    "ResizeImage": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ca-central-1:322134621187:function:ResizeImageFunction:$LATEST",
+
+        "Payload": {
+          "bucket.$": "$.bucket",
+          "key.$": "$.key"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "CheckResizeSuccess"
+    },
+    "CheckResizeSuccess": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Payload.status",
+          "StringEquals": "success",
+          "Next": "SuccessState"
+        }
+      ],
+      "Default": "FailState"
+    },
+    "SuccessState": {
+      "Type": "Succeed",
+      "Comment": "Image resized and uploaded successfully!"
+    },
+    "FailState": {
+      "Type": "Fail",
+      "Cause": "Image resize failed - check Lambda logs",
+      "Error": "ResizeError"
+    }
+  }
+}
